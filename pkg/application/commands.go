@@ -9,12 +9,12 @@ import (
 )
 
 // keep all the external commands in one place
-func (app *Compose) Up(forceRemote string) error {
+func (app *Compose) Up(forceRemote string, defaultNetworkType string, defaultNetworkUplink string) error {
 	err := app.SanityCheck()
 	if err != nil {
 		return err
 	}
-	err = app.CreateDefaultNetwork("")
+	err = app.CreateDefaultNetwork(defaultNetworkType, defaultNetworkUplink)
 	if err != nil {
 		return err
 	}

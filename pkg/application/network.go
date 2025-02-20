@@ -10,12 +10,13 @@ import (
 
 // DefaultNetworkName is the stable name of the default network for a stack
 func (c *Compose) DefaultNetworkName() string {
-	slog.Info("DefaultNetworkName", slog.String("name", c.Name))
+	slog.Debug("DefaultNetworkName", slog.String("name", c.Name))
 	return c.Name
 }
 
 // CreateDefaultNetwork creates the default network for a stack
-func (c *Compose) CreateDefaultNetwork(nettype string) error {
+func (c *Compose) CreateDefaultNetwork(nettype string, uplink string) error {
+	slog.Info("Creating default network", slog.String("type", nettype), slog.String("uplink", uplink))
 	fmt.Println(c.ComposeProject.Networks)
 	for key, network := range c.ComposeProject.Networks {
 		fmt.Println(key, network)
@@ -54,6 +55,10 @@ func (c *Compose) CreateDefaultNetwork(nettype string) error {
 		network.Config = map[string]string{}
 	}
 
+	if nettype == "ovn" {
+		network.Config["network"] = uplink
+	}
+
 	err = client.CreateNetwork(network)
 	if err != nil {
 		return err
@@ -66,6 +71,7 @@ func (c *Compose) CreateDefaultNetwork(nettype string) error {
 
 // DestroyDefaultNetwork destroys the default network for a stack
 func (c *Compose) DestroyDefaultNetwork() error {
+	slog.Info("Destroying default network")
 	// check to see if the Networks map has a default key
 	// if not, return
 	if _, ok := c.ComposeProject.Networks["default"]; !ok {

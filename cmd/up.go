@@ -37,7 +37,7 @@ var upCmd = &cobra.Command{
 
 		slog.Info("Starting", slog.String("app", app.Name))
 
-		err := app.Up(forceRemote)
+		err := app.Up(forceRemote, defaultNetworkType, defaultNetworkUplink)
 		if err != nil {
 			slog.Error("Start", slog.String("error", err.Error()))
 		}

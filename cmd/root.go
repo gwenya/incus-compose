@@ -57,6 +57,8 @@ var logLevel = new(slog.LevelVar) // Info by default
 var timeout int
 var dryRun bool
 var forceRemote string
+var defaultNetworkType string
+var defaultNetworkUplink string
 var cwd string
 var project *dockercompose.Project
 var app *application.Compose
@@ -184,6 +186,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print commands that would be executed without running them")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "verbose", "d", false, "verbose logging")
 	rootCmd.PersistentFlags().StringVar(&forceRemote, "remote", "", "treat all images as docker images")
+	rootCmd.PersistentFlags().StringVar(&defaultNetworkType, "network-type", "", "type of the default network (bridge or ovn)")
+	rootCmd.PersistentFlags().StringVar(&defaultNetworkUplink, "network-uplink", "", "uplink for the default network if it is ovn")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -191,7 +195,7 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 }
-func globalPreRunHook(_ *cobra.Command, _ []string) {
+func globalPreRunHook(cmd *cobra.Command, _ []string) {
 
 	// set up logging
 	slog.SetDefault(slog.New(
@@ -207,6 +211,12 @@ func globalPreRunHook(_ *cobra.Command, _ []string) {
 		logLevel.Set(getLogLevelFromEnv())
 	}
 
+	if defaultNetworkType == "ovn" {
+		err := cmd.MarkFlagRequired("network-uplink")
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func getLogLevelFromEnv() slog.Level {
