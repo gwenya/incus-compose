@@ -1,97 +1,95 @@
 package application
 
 import (
-	"fmt"
-
+	"errors"
 	api "github.com/lxc/incus/v6/shared/api"
 
 	"log/slog"
 )
 
-// DefaultNetworkName is the stable name of the default network for a stack
-func (c *Compose) DefaultNetworkName() string {
-	slog.Debug("DefaultNetworkName", slog.String("name", c.Name))
-	return c.Name
-}
+// CreateNetworks creates the default network for a stack
+func (c *Compose) CreateNetworks() error {
+	slog.Info("Creating networks")
 
-// CreateDefaultNetwork creates the default network for a stack
-func (c *Compose) CreateDefaultNetwork() error {
-	nettype := c.Network.Type
-	slog.Info("Creating default network", slog.String("type", nettype), slog.String("uplink", c.Network.Uplink))
-	fmt.Println(c.ComposeProject.Networks)
 	for key, network := range c.ComposeProject.Networks {
-		fmt.Println(key, network)
-		fmt.Println(network.Name)
+		if network.External {
+			continue
+		}
+		var nettype string
+		var uplink string
+
+		if ok, err := network.Extensions.Get("x-incus-type", &nettype); !ok || err != nil {
+			nettype = c.Network.Type
+		}
+
+		if ok, err := network.Extensions.Get("x-incus-uplink", &uplink); !ok || err != nil {
+			uplink = c.Network.Uplink
+		}
+
+		slog.Info("Creating network",
+			slog.String("key", key),
+			slog.String("name", network.Name),
+			slog.String("type", nettype),
+			slog.String("uplink", uplink),
+		)
+
+		var apiNetwork api.NetworksPost
+
+		apiNetwork.Name = network.Name
+		apiNetwork.Type = nettype
+		apiNetwork.Config = map[string]string{}
+
+		if nettype == "ovn" {
+			apiNetwork.Config["network"] = uplink
+		}
+
+		// Parse remote
+		resources, err := c.ParseServers(network.Name)
+		if err != nil {
+			return err
+		}
+
+		resource := resources[0]
+		client := resource.server
+
+		// Create the network
+		err = client.CreateNetwork(apiNetwork)
+		if err != nil {
+			return err
+		}
+
+		slog.Info("Network created", slog.String("name", network.Name))
 	}
-
-	// check to see if the Networks map has a default key
-	// if not, return
-	if _, ok := c.ComposeProject.Networks["default"]; !ok {
-		return nil
-	}
-
-	var stdinData api.NetworkPut
-	if nettype == "" {
-		nettype = "bridge"
-	}
-
-	// Parse remote
-	resources, err := c.ParseServers(c.DefaultNetworkName())
-	if err != nil {
-		return err
-	}
-
-	resource := resources[0]
-	client := resource.server
-
-	// Create the network
-	network := api.NetworksPost{
-		NetworkPut: stdinData,
-	}
-
-	network.Name = resource.name
-	network.Type = nettype
-
-	if network.Config == nil {
-		network.Config = map[string]string{}
-	}
-
-	if nettype == "ovn" {
-		network.Config["network"] = c.Network.Uplink
-	}
-
-	err = client.CreateNetwork(network)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Network %s created"+"\n", resource.name)
 
 	return nil
 }
 
-// DestroyDefaultNetwork destroys the default network for a stack
-func (c *Compose) DestroyDefaultNetwork() error {
-	slog.Info("Destroying default network")
-	// check to see if the Networks map has a default key
-	// if not, return
-	if _, ok := c.ComposeProject.Networks["default"]; !ok {
-		return nil
-	}
-	// Parse remote
-	resources, err := c.ParseServers(c.DefaultNetworkName())
-	if err != nil {
-		return err
-	}
+// DestroyNetworks destroys the default network for a stack
+func (c *Compose) DestroyNetworks() error {
+	slog.Info("Destroying networks")
 
-	resource := resources[0]
+	var funcError error
 
-	// Delete the network
-	err = resource.server.DeleteNetwork(resource.name)
-	if err != nil {
-		return err
+	for key, network := range c.ComposeProject.Networks {
+		if network.External {
+			continue
+		}
+
+		slog.Info("Destroying network", slog.String("key", key), slog.String("name", network.Name))
+
+		resources, err := c.ParseServers(network.Name)
+		if err != nil {
+			funcError = errors.Join(funcError, err)
+		}
+
+		resource := resources[0]
+
+		// Delete the network
+		err = resource.server.DeleteNetwork(resource.name)
+		if err != nil {
+			funcError = errors.Join(funcError, err)
+		}
+		slog.Info("Destroyed network", slog.String("name", network.Name))
 	}
-	fmt.Printf("Network %s deleted"+"\n", resource.name)
-
-	return nil
+	return funcError
 }

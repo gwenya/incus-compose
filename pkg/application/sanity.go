@@ -128,18 +128,14 @@ func (app *Compose) SanityCheck() error {
 		}
 	}
 	// check to see if the network declared exists
-	for _, s := range app.ComposeProject.Services {
-		if s.Networks != nil {
-			for name := range s.Networks {
-				if name == "default" {
-					continue
-				}
-				if !slices.Contains(netNames, name) {
-					return &SanityCheckError{
-						Step: "check declared network exists",
-						Err:  fmt.Errorf("network '%s' does not exist in project '%s'", name, app.GetProject()),
-					}
-				}
+	for _, network := range app.ComposeProject.Networks {
+		if !network.External {
+			continue
+		}
+		if !slices.Contains(netNames, network.Name) {
+			return &SanityCheckError{
+				Step: "check declared external network exists",
+				Err:  fmt.Errorf("network '%s' does not exist in project '%s'", network.Name, app.GetProject()),
 			}
 		}
 	}

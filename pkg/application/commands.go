@@ -14,7 +14,7 @@ func (app *Compose) Up() error {
 	if err != nil {
 		return err
 	}
-	err = app.CreateDefaultNetwork()
+	err = app.CreateNetworks()
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (app *Compose) Down(force, volumes bool, timeout int) error {
 
 	}
 
-	err := app.DestroyDefaultNetwork()
+	err := app.DestroyNetworks()
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (app *Compose) Remove(timeout int, force, stop, volumes bool) error {
 		}
 
 	}
-	err := app.DestroyDefaultNetwork()
+	err := app.DestroyNetworks()
 	if err != nil {
 		return err
 	}

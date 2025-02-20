@@ -238,13 +238,14 @@ func (app *Compose) InitContainerForService(service string) error {
 	if len(sc.Networks) > 0 {
 		networkNumber := 0
 		for net := range sc.Networks {
-			if net == "default" {
-				net = app.DefaultNetworkName()
+			networkConfig, ok := app.ComposeProject.Networks[net]
+			if !ok {
+				return fmt.Errorf("unknown network %q", net)
 			}
 
 			netName := fmt.Sprintf("eth%d", networkNumber)
 
-			network, _, err := d.GetNetwork(net)
+			network, _, err := d.GetNetwork(networkConfig.Name)
 			if err != nil {
 				return fmt.Errorf("failed loading network %q: %w", net, err)
 			}
@@ -276,7 +277,6 @@ func (app *Compose) InitContainerForService(service string) error {
 			}
 			devicesMap[netName] = device
 			networkNumber++
-
 		}
 	} // sc.networks
 
