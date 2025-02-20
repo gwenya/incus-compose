@@ -37,7 +37,7 @@ var upCmd = &cobra.Command{
 
 		slog.Info("Starting", slog.String("app", app.Name))
 
-		err := app.Up()
+		err := app.Up(forceRemote)
 		if err != nil {
 			slog.Error("Start", slog.String("error", err.Error()))
 		}

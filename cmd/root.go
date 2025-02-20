@@ -56,6 +56,7 @@ var forceLocal bool
 var logLevel = new(slog.LevelVar) // Info by default
 var timeout int
 var dryRun bool
+var forceRemote string
 var cwd string
 var project *dockercompose.Project
 var app *application.Compose
@@ -182,6 +183,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cwd, "cwd", "", "change working directory")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print commands that would be executed without running them")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "verbose", "d", false, "verbose logging")
+	rootCmd.PersistentFlags().StringVar(&forceRemote, "remote", "", "treat all images as docker images")
 }
 
 // initConfig reads in config file and ENV variables if set.

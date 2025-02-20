@@ -9,7 +9,7 @@ import (
 )
 
 // keep all the external commands in one place
-func (app *Compose) Up() error {
+func (app *Compose) Up(forceRemote string) error {
 	err := app.SanityCheck()
 	if err != nil {
 		return err
@@ -21,7 +21,7 @@ func (app *Compose) Up() error {
 
 	for _, service := range app.Order(true) {
 
-		err := app.InitContainerForService(service)
+		err := app.InitContainerForService(service, forceRemote)
 		if err != nil {
 			return err
 		}
