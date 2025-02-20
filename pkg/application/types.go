@@ -9,13 +9,21 @@ import (
 type Compose struct {
 	Name           string                      `yaml:"name" validate:"required"`
 	Project        string                      `yaml:"project,omitempty" validate:"project-exists"`
+	Remote         string                      `yaml:"remote,omitempty"`
+	Network        Network                     `yaml:"network,omitempty"`
 	Services       map[string]Service          `yaml:"services" validate:"required,dive,required"`
 	Profiles       []string                    `yaml:"profiles" validate:"dive,profile-exists"`
 	ExportPath     string                      `yaml:"export_path,omitempty"`
 	Dag            graph.Graph[string, string] `yaml:"-"`
 	ComposeProject *types.Project              `yaml:"-"`
 	SecretsFiles   map[string]SecretsFile      `yaml:"secretsfiles,omitempty"`
+	DryRun         bool
 	conf           *config.Config
+}
+
+type Network struct {
+	Type   string `yaml:"type" validate:"required"`
+	Uplink string `yaml:"uplink,omitempty"`
 }
 
 type Service struct {

@@ -9,19 +9,19 @@ import (
 )
 
 // keep all the external commands in one place
-func (app *Compose) Up(forceRemote string, defaultNetworkType string, defaultNetworkUplink string) error {
+func (app *Compose) Up() error {
 	err := app.SanityCheck()
 	if err != nil {
 		return err
 	}
-	err = app.CreateDefaultNetwork(defaultNetworkType, defaultNetworkUplink)
+	err = app.CreateDefaultNetwork()
 	if err != nil {
 		return err
 	}
 
 	for _, service := range app.Order(true) {
 
-		err := app.InitContainerForService(service, forceRemote)
+		err := app.InitContainerForService(service)
 		if err != nil {
 			return err
 		}

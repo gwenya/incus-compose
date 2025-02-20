@@ -132,7 +132,7 @@ func (app *Compose) RestartContainerForService(service string) error {
 	return app.updateInstanceState(containerName, "restart", -1, false, false)
 
 }
-func (app *Compose) InitContainerForService(service string, forceRemote string) error {
+func (app *Compose) InitContainerForService(service string) error {
 	slog.Info("Initialize", slog.String("instance", service))
 
 	var image string
@@ -373,8 +373,8 @@ func (app *Compose) InitContainerForService(service string, forceRemote string) 
 
 	instancePost.Devices = devicesMap
 
-	if forceRemote != "" {
-		iremote = forceRemote
+	if app.Remote != "" {
+		iremote = app.Remote
 		image = sc.Image
 	} else {
 		iremote, image, err = app.conf.ParseRemote(sc.Image)

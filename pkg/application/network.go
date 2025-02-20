@@ -15,8 +15,9 @@ func (c *Compose) DefaultNetworkName() string {
 }
 
 // CreateDefaultNetwork creates the default network for a stack
-func (c *Compose) CreateDefaultNetwork(nettype string, uplink string) error {
-	slog.Info("Creating default network", slog.String("type", nettype), slog.String("uplink", uplink))
+func (c *Compose) CreateDefaultNetwork() error {
+	nettype := c.Network.Type
+	slog.Info("Creating default network", slog.String("type", nettype), slog.String("uplink", c.Network.Uplink))
 	fmt.Println(c.ComposeProject.Networks)
 	for key, network := range c.ComposeProject.Networks {
 		fmt.Println(key, network)
@@ -56,7 +57,7 @@ func (c *Compose) CreateDefaultNetwork(nettype string, uplink string) error {
 	}
 
 	if nettype == "ovn" {
-		network.Config["network"] = uplink
+		network.Config["network"] = c.Network.Uplink
 	}
 
 	err = client.CreateNetwork(network)

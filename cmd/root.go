@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -55,10 +56,6 @@ var forceLocal bool
 // var app application.Compose
 var logLevel = new(slog.LevelVar) // Info by default
 var timeout int
-var dryRun bool
-var forceRemote string
-var defaultNetworkType string
-var defaultNetworkUplink string
 var cwd string
 var project *dockercompose.Project
 var app *application.Compose
@@ -131,9 +128,19 @@ var rootCmd = &cobra.Command{
 		// Set cache directory in config.
 		conf.CacheDir = cachePath
 
-		conf.ProjectOverride = os.Getenv("INCUS_PROJECT")
-
 		globalPreRunHook(cmd, args)
+
+		viper.AddConfigPath("$HOME/.config")
+		viper.SetConfigName("incus-compose")
+		viper.SetConfigType("yaml")
+		err = viper.ReadInConfig()
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if err != nil && !errors.As(err, &configFileNotFoundError) {
+			slog.Error("failed to load config file", slog.String("err", err.Error()))
+		}
+
+		conf.ProjectOverride = viper.GetString("incus-project")
+
 		loader := configureLoader(cmd)
 		project, err = loader.LoadProject(context.Background())
 		if err != nil {
@@ -143,6 +150,12 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		app.Network.Type = viper.GetString("network.type")
+		app.Network.Uplink = viper.GetString("network.uplink")
+
+		app.Remote = viper.GetString("remote")
+
 		g := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic())
 		for name := range app.Services {
 			_ = g.AddVertex(name)
@@ -180,22 +193,29 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
 	rootCmd.PersistentFlags().StringVar(&cwd, "cwd", "", "change working directory")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print commands that would be executed without running them")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "verbose", "d", false, "verbose logging")
-	rootCmd.PersistentFlags().StringVar(&forceRemote, "remote", "", "treat all images as docker images")
-	rootCmd.PersistentFlags().StringVar(&defaultNetworkType, "network-type", "", "type of the default network (bridge or ovn)")
-	rootCmd.PersistentFlags().StringVar(&defaultNetworkUplink, "network-uplink", "", "uplink for the default network if it is ovn")
+
+	rootCmd.PersistentFlags().Bool("dry-run", false, "print commands that would be executed without running them")
+
+	rootCmd.PersistentFlags().String("remote", "", "treat all images as docker images")
+	_ = viper.BindPFlag("remote", rootCmd.PersistentFlags().Lookup("remote"))
+	_ = viper.BindEnv("remote", "INCUS_COMPOSE_REMOTE")
+
+	rootCmd.PersistentFlags().String("network-type", "", "type of the default network (bridge or ovn)")
+	_ = viper.BindPFlag("network.type", rootCmd.PersistentFlags().Lookup("network-type"))
+	_ = viper.BindEnv("network.type", "INCUS_COMPOSE_NETWORK_TYPE")
+
+	rootCmd.PersistentFlags().String("network-uplink", "", "uplink for the default network if it is ovn")
+	_ = viper.BindPFlag("network.uplink", rootCmd.PersistentFlags().Lookup("network-uplink"))
+	_ = viper.BindEnv("network.uplink", "INCUS_COMPOSE_NETWORK_UPLINK")
+
+	rootCmd.PersistentFlags().String("project", "", "use this incus project rather than the default one")
+	_ = viper.BindPFlag("incus-project", rootCmd.PersistentFlags().Lookup("project"))
+	_ = viper.BindEnv("incus-project", "INCUS_PROJECT")
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	viper.AutomaticEnv() // read in environment variables that match
-
-}
-func globalPreRunHook(cmd *cobra.Command, _ []string) {
+func globalPreRunHook(_ *cobra.Command, _ []string) {
 
 	// set up logging
 	slog.SetDefault(slog.New(
@@ -209,13 +229,6 @@ func globalPreRunHook(cmd *cobra.Command, _ []string) {
 		slog.Debug("Verbose logging")
 	} else {
 		logLevel.Set(getLogLevelFromEnv())
-	}
-
-	if defaultNetworkType == "ovn" {
-		err := cmd.MarkFlagRequired("network-uplink")
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 
